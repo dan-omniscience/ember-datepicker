@@ -171,7 +171,13 @@ export default TextField.extend({
         this._setControllerDate(d);
       }
     }
-    this.get('_picker').setDate(d.format());
+    if (this.get("utc")) {
+      this.get("_picker").setDate(new Date(d
+            .utc()
+            .year(), d.utc().month(), d.utc().date()));
+    } else {
+      this.get("_picker").setDate(d.format());
+    }
   }),
   /**
    * Update Pikaday's minDate after bound `minDate` changed and also after
