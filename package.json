@@ -1,6 +1,6 @@
 {
   "name": "ember-cli-datepicker",
-  "version": "2.1.2",
+  "version": "2.0.1",
   "description": "An Ember datepicker component using Pikaday and momentjs",
   "keywords": [
     "ember-addon"
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/onesourceinformationservices/ember-datepicker"
+    "url": "https://github.com/squirelabs/ember-datepicker"
   },
   "scripts": {
     "build": "ember build",
@@ -24,7 +24,7 @@
     "test": "ember try:each"
   },
   "bugs": {
-    "url": "https://github.com/onesourceinformationservices/ember-datepicker/issues"
+    "url": "https://github.com/squirelabs/ember-datepicker/issues"
   },
   "homepage": "https://github.com/squirelabs/ember-datepicker",
   "dependencies": {

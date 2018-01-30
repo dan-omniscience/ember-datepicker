@@ -30,15 +30,6 @@ module.exports = function(environment) {
     // ENV.APP.LOG_TRANSITIONS = true;
     // ENV.APP.LOG_TRANSITIONS_INTERNAL = true;
     // ENV.APP.LOG_VIEW_LOOKUPS = true;
-
-    ENV.contentSecurityPolicy = {
-      'connect-src': "'self'",
-      'font-src': "'self'",
-      'style-src': "'self' 'unsafe-inline'",
-      'img-src': "'self' data:"
-    };
-    ENV.contentSecurityPolicyHeader = 'Content-Security-Policy';
-    ENV.contentSecurityPolicyMeta = true;
   }
 
   if (environment === 'test') {
