@@ -1,6 +1,10 @@
-import Ember from 'ember';
+import TextField from '@ember/component/text-field';
+import $ from 'jquery';
+import moment from 'moment';
+import { computed, observer } from '@ember/object';
+import { isBlank, isEmpty } from '@ember/utils';
 
-export default Ember.TextField.extend({
+export default TextField.extend({
   /**
    * Component settings defaults
    */
@@ -8,24 +12,18 @@ export default Ember.TextField.extend({
   format: 'YYYY-MM-DD', // the format to display in the text field
   allowBlank: false, // whether `null` input/result is acceptable
   utc: false, // whether the input value is meant as a UTC date
-  dismissOnScroll: false, // whether the picker should dismiss on any scroll event
-  scrollContainer: null, // where to attach the picker
   date: null,
-  hasNullFooter: false,
-  nullFooterCheckboxId: `checkBox${Math.floor(Math.random() * 100000)}`,
-  nullFooterCheckboxValue: false,
-  nullFooter: (nullFooterCheckboxId, getIsChecked) => {
-    let checked = getIsChecked() ? 'checked' : '';
-    return `<hr/><label title="Empty Field entries"><input id="${nullFooterCheckboxId}" ${checked} type="checkbox">Empty Field entries</label>`;
-  },
-  yearRange: function () {
-    var cy = window.moment().year();
-    return `${cy-3},${cy+4}`;
-  }.property(), // default yearRange from -3 to +4 years
+
+  yearRange: computed(function() {
+    const cy = moment().year();
+
+    return `${cy - 3},${cy + 4}`;
+  }),
+
   // A private method which returns the year range in absolute terms
-  _yearRange: Ember.computed('yearRange', function () {
+  _yearRange: computed('yearRange', function() {
     var yr = this.get('yearRange');
-    if (!Ember.$.isArray(yr)) {
+    if (!$.isArray(yr)) {
       yr = yr.split(',');
     }
     // assume we're in absolute form if the start year > 1000
@@ -42,94 +40,85 @@ export default Ember.TextField.extend({
   /**
    * Setup Pikaday element after component was inserted.
    */
-  setup: function () {
-    Ember.run.schedule('afterRender', this, function () {
+  didInsertElement() {
+    var formElement = this.$()[0],
+      that = this,
+      pickerOptions = {
+        field: formElement,
+        yearRange: that.get('_yearRange'),
+        clearInvalidInput: true,
+        /**
+         * After the Pikaday component was closed, read the selected value
+         * from the input field (remember we're extending TextField!).
+         *
+         * If that value is empty or no valid date, depend on `allowBlank` if
+         * the `date` binding will be set to `null` or to the current date.
+         *
+         * Format the "outgoing" date with respect to the given `format`.
+         */
+        onClose: function() {
+          // use `moment` or `moment.utc` depending on `utc` flag
+          var momentFunction = that.get('utc')
+              ? window.moment.utc
+              : window.moment,
+            d = momentFunction(that.get('value'), that.get('format'));
 
-      var scrollElement = this.$().closest(this.get('scrollContainer'))[0];
-      var formElement = this.$()[0],
-        that = this,
-        pickerOptions = {
-          field: formElement,
-          yearRange: that.get('_yearRange'),
-          clearInvalidInput: true,
-          container: scrollElement,
-          /**
-           * After the Pikaday component was closed, read the selected value
-           * from the input field (remember we're extending Ember.TextField!).
-           *
-           * If that value is empty or no valid date, depend on `allowBlank` if
-           * the `date` binding will be set to `null` or to the current date.
-           *
-           * Format the "outgoing" date with respect to the given `format`.
-           */
-          onClose: function () {
-            // use `moment` or `moment.utc` depending on `utc` flag
-            var momentFunction = that.get('utc') ? window.moment.utc : window.moment,
-              d = momentFunction(that.get('value'), that.get('format'));
-
-            // has there been a valid date or any value at all?
-            if (!d.isValid() ||  !that.get('value')) {
-              if (that.get('allowBlank')) {
-                // allowBlank means `null` is ok, so use that
-                return that.set('date', null);
-              } else {
-                // "fallback" to current date
-                d = window.moment();
-              }
+          // has there been a valid date or any value at all?
+          if (!d.isValid() || !that.get('value')) {
+            if (that.get('allowBlank')) {
+              // allowBlank means `null` is ok, so use that
+              return that.set('date', null);
+            } else {
+              // "fallback" to current date
+              d = window.moment();
             }
-
-            that._setControllerDate(d);
           }
-        },
-        picker = null;
 
-      ['bound', 'position', 'reposition', 'format', 'firstDay', 'minDate',
-        'maxDate', 'showWeekNumber', 'isRTL', 'i18n', 'yearSuffix', 'disableWeekends', 'disableDayFn',
-        'showMonthAfterYear', 'numberOfMonths', 'mainCalendar', 'footer'
-      ].forEach(function (f) {
-        if (!Ember.isEmpty(that.get(f))) {
-          pickerOptions[f] = that.get(f);
+          that._setControllerDate(d);
         }
-      });
+      },
+      picker = null;
 
-      if (this.get('hasNullFooter')) {
-        let nullFooterCheckboxId = this.get('nullFooterCheckboxId');
-        pickerOptions['footer'] = this.get('nullFooter');
-        pickerOptions['nullFooterCheckboxId'] = this.get('nullFooterCheckboxId');
-        pickerOptions['getIsChecked'] = () => {
-          return this.get('nullFooterCheckboxValue');
-        };
-        pickerOptions['onFocus'] = () => {
-          Ember.$(`#${nullFooterCheckboxId}`).change((e) => {
-            this.set('nullFooterCheckboxValue', e.target.checked);
-          });
-        };
+    [
+      'bound',
+      'position',
+      'reposition',
+      'format',
+      'firstDay',
+      'minDate',
+      'maxDate',
+      'showWeekNumber',
+      'isRTL',
+      'i18n',
+      'yearSuffix',
+      'disableWeekends',
+      'disableDayFn',
+      'showMonthAfterYear',
+      'numberOfMonths',
+      'mainCalendar'
+    ].forEach(f => {
+      if (!isEmpty(that.get(f))) {
+        pickerOptions[f] = this.get(f);
       }
-      picker = new window.Pikaday(pickerOptions);
-
-      if (this.get('dismissOnScroll')) {
-        window.addEventListener('scroll', () => picker.hide(), true);
-      }
-
-      if (scrollElement) {
-        window.addEventListener('scroll', () => picker.adjustPosition(), true);
-      }
-
-      // store Pikaday element for later access
-      this.set("_picker", picker);
-
-      // initially sync Pikaday with external `date` value
-      this.setDate();
-
     });
-  }.on('init'),
+
+    picker = new window.Pikaday(pickerOptions);
+
+    // store Pikaday element for later access
+    this.set('_picker', picker);
+
+    // initially sync Pikaday with external `date` value
+    this.setDate();
+  },
   /**
    * Set the date on the controller.
    */
-  _setControllerDate: function (d) {
+  _setControllerDate: function(d) {
     // update date value with user selected date with consistent format
     if (this.get('valueFormat') === 'date') {
       d = d.toDate();
+    } else if (this.get('valueFormat') === 'moment') {
+      // just set date as a moment object
     } else {
       d = d.format(this.get('valueFormat'));
     }
@@ -141,7 +130,7 @@ export default Ember.TextField.extend({
    * Propper teardown to remove Pickady from the dom when the component gets
    * destroyed.
    */
-  willDestroyElement: function () {
+  willDestroyElement: function() {
     this.get('_picker').destroy();
     this._super();
   },
@@ -157,14 +146,16 @@ export default Ember.TextField.extend({
    * "new Date()" is used or an invalid date will force Pikaday to clear the
    * input element shown on the page.
    */
-  setDate: Ember.observer('date', function () {
+  setDate: observer('date', function() {
     var d = null;
-    if (!Ember.isBlank(this.get('date'))) {
+    if (!isBlank(this.get('date'))) {
       // serialize moment.js date either from plain date object or string
       if (this.get('valueFormat') === 'date') {
         d = window.moment(this.get('date'));
+      } else if (this.get('valueFormat') === 'moment') {
+        d = this.get('date');
       } else {
-        d = window.moment(this.get('date'), this.get("valueFormat"));
+        d = window.moment(this.get('date'), this.get('valueFormat'));
       }
     } else {
       // no date was found in data source. Either respect that or set it to now
@@ -186,8 +177,8 @@ export default Ember.TextField.extend({
    * Update Pikaday's minDate after bound `minDate` changed and also after
    * the initial `didInsertElement`.
    */
-  setMinDate: Ember.observer('minDate', function () {
-    if (!Ember.isBlank(this.get('minDate'))) {
+  setMinDate: observer('minDate', function() {
+    if (!isBlank(this.get('minDate'))) {
       this.get('_picker').setMinDate(this.get('minDate'));
     }
   }),
@@ -195,8 +186,8 @@ export default Ember.TextField.extend({
    * Update Pikaday's maxDate after bound `maxDate` changed and also after
    * the initial `didInsertElement`.
    */
-  setMaxDate: Ember.observer('maxDate', function () {
-    if (!Ember.isBlank(this.get('maxDate'))) {
+  setMaxDate: observer('maxDate', function() {
+    if (!isBlank(this.get('maxDate'))) {
       this.get('_picker').setMaxDate(this.get('maxDate'));
     }
   })
